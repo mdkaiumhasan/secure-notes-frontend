@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * cookie is present (it's httpOnly, so its contents can't be read here) - the API still verifies
  * and authorizes every request itself, so this is a UX shortcut, not the security boundary.
  */
-const PROTECTED_PREFIXES = ['/notes', '/admin'];
+const PROTECTED_PREFIXES = ['/notes', '/admin', '/posts'];
 
 export function proxy(req: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((p) => req.nextUrl.pathname.startsWith(p));
@@ -19,4 +19,4 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ['/notes/:path*', '/admin/:path*'] };
+export const config = { matcher: ['/notes/:path*', '/admin/:path*', '/posts/:path*'] };

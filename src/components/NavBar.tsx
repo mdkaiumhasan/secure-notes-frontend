@@ -26,8 +26,8 @@ export function NavBar() {
         </Link>
         <nav className="flex items-center gap-5">
           {user && link('/notes', 'Notes')}
+          {user && link('/posts', 'Posts')}
           {user?.role === 'admin' && link('/admin/users', 'Users')}
-          {user?.role === 'admin' && link('/admin/posts', 'Posts')}
           {user?.role === 'admin' && link('/admin/insight', 'Query insight')}
           {user ? (
             <div className="flex items-center gap-3">
