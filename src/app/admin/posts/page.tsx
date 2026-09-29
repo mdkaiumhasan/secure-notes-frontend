@@ -1,29 +1,53 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Protected } from '@/components/Protected';
 import { ApiError, get } from '@/lib/api';
-import type { Page, Post } from '@/lib/types';
+import type { Page, Post, User } from '@/lib/types';
 
 /** Demonstrates the $lookup aggregation: all posts written by one user, looked up by their id. */
 function PostsByUserInner() {
+  const searchParams = useSearchParams();
   const [userId, setUserId] = useState('');
   const [userName, setUserName] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const search = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchPostsForId = async (id: string) => {
     setLoading(true); setError(null);
     try {
-      const res = await get<Page<Post> & { user: { _id: string; name: string } }>(`/api/posts/by-user/${userId}`);
+      let targetId = id.trim();
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(targetId);
+      if (!isObjectId && targetId.includes('@')) {
+        const usersList = await get<Page<User>>('/api/users?limit=50');
+        const found = usersList.items.find((u) => u.email.toLowerCase() === targetId.toLowerCase());
+        if (!found) throw new Error(`User with email "${targetId}" not found`);
+        targetId = found._id;
+      }
+      const res = await get<Page<Post> & { user: { _id: string; name: string } }>(`/api/posts/by-user/${targetId}`);
       setUserName(res.user.name);
       setPosts(res.items);
-    } catch (e) {
+    } catch (e: unknown) {
       setUserName(null); setPosts([]);
-      setError(e instanceof ApiError ? e.message : 'Failed to load posts');
+      const msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Failed to load posts';
+      setError(msg);
     } finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    const paramId = searchParams.get('userId');
+    if (paramId) {
+      setUserId(paramId);
+      void fetchPostsForId(paramId);
+    }
+  }, [searchParams]);
+
+  const search = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId.trim()) return;
+    await fetchPostsForId(userId);
   };
 
   return (
@@ -34,12 +58,21 @@ function PostsByUserInner() {
       </div>
 
       <form onSubmit={search} className="flex gap-2">
-        <input className="field" placeholder="User ID (from the Users page)" required value={userId} onChange={(e) => setUserId(e.target.value)} />
+        <input
+          className="field"
+          placeholder="User ID or Email (e.g. from the Users page)"
+          required
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+        />
         <button className="btn btn-primary shrink-0" disabled={loading} type="submit">{loading ? 'Searching…' : 'Search'}</button>
       </form>
 
       {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
       {userName && <p className="text-sm text-[var(--ink)]/60">Posts by <span className="font-medium text-[var(--ink)]">{userName}</span></p>}
+      {!loading && userName && posts.length === 0 && (
+        <p className="text-sm text-[var(--ink)]/60">This user hasn't written any posts yet.</p>
+      )}
 
       <ul className="space-y-2">
         {posts.map((p) => (
@@ -55,5 +88,11 @@ function PostsByUserInner() {
 }
 
 export default function PostsPage() {
-  return <Protected role="admin"><PostsByUserInner /></Protected>;
+  return (
+    <Protected role="admin">
+      <Suspense fallback={<p className="text-sm text-[var(--ink)]/60">Loading…</p>}>
+        <PostsByUserInner />
+      </Suspense>
+    </Protected>
+  );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Protected } from '@/components/Protected';
 import { ApiError, del, get, patch, post } from '@/lib/api';
@@ -91,9 +92,15 @@ function UsersInner() {
             <div>
               <p className="font-medium">{u.name} <span className="badge ml-1">{u.role}</span></p>
               <p className="text-sm text-[var(--ink)]/60">{u.email}</p>
+              <p className="mono mt-1 text-xs text-[var(--ink)]/50 select-all" title="User ID">
+                ID: <span className="rounded bg-[var(--paper-dim)] px-1 py-0.5">{u._id}</span>
+              </p>
               {u.interests.length > 0 && <p className="mt-1 text-xs text-[var(--ink)]/40">{u.interests.join(', ')}</p>}
             </div>
             <div className="flex shrink-0 gap-2">
+              <Link href={`/admin/posts?userId=${u._id}`} className="btn btn-ghost !py-1 !px-2 text-xs">
+                Posts
+              </Link>
               <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => toggleRole(u)}>
                 {u.role === 'admin' ? 'Demote' : 'Promote'}
               </button>
